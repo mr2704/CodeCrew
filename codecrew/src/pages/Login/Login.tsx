@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { FiMail, FiLock, FiEye, FiEyeOff, FiAlertCircle } from 'react-icons/fi';
 
@@ -13,7 +14,6 @@ export const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // If already logged in, redirect to dashboard
   React.useEffect(() => {
     if (currentUser) {
       navigate('/dashboard');
@@ -23,23 +23,30 @@ export const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
 
     if (!email || !password) {
       setError('Please fill in all fields.');
-      setIsLoading(false);
       return;
     }
 
+    setIsLoading(true);
+
     try {
-      const success = await login(email);
+      const success = await login(email, password);
       if (success) {
         navigate('/dashboard');
       } else {
         setError('Invalid email or password.');
       }
     } catch (err) {
-      setError('An error occurred during login. Please try again.');
+      if (axios.isAxiosError(err)) {
+        setError(
+          err.response?.data?.message ||
+          'An error occurred during login. Please try again.'
+        );
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
