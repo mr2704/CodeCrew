@@ -7,6 +7,7 @@ import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import swipeRoutes from "./routes/swipeRoutes.js";
+import inviteRoutes from "./routes/inviteRoutes.js";
 
 dotenv.config();
 
@@ -52,22 +53,27 @@ const startServer = async () => {
     app.use(express.json());
 
     // Health check route
-    app.get("/health", (req, res) => {
-      res.status(200).json({ status: "OK", message: "CodeCrew API Running" });
-    });
+    // Health check route
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    message: "CodeCrew API Running",
+  });
+});
 
-    // API Routes
-    app.use("/api/auth", authRoutes);
-    app.use("/api/users", userRoutes);
-    app.use("/api/swipes", swipeRoutes);
+// API Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/swipes", swipeRoutes);
+app.use("/api/invites", inviteRoutes);
 
-    // Unhandled route handler (404)
-    app.use((req, res, next) => {
-      res.status(404).json({
-        success: false,
-        message: `Endpoint ${req.originalUrl} not found`,
-      });
-    });
+// Unhandled route handler (404)
+app.use((req, res, next) => {
+  res.status(404).json({
+    success: false,
+    message: `Endpoint ${req.originalUrl} not found`,
+  });
+});
 
     // Global Error Handling Middleware (prevents raw stack trace leakages in production)
     app.use((err, req, res, next) => {
