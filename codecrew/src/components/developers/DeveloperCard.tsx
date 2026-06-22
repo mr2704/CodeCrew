@@ -29,6 +29,13 @@ export const DeveloperCard: React.FC<DeveloperCardProps> = ({ developer }) => {
     setMessage('');
   };
 
+  // Safe split for developer name to address greeting fallback
+  const firstName = (developer.name || '').trim().split(' ')[0] || 'there';
+
+  // Safe avatar fallback URL
+  const avatarUrl = developer.avatar || 
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(developer.name || "Developer")}&background=7c3aed&color=fff`;
+
   return (
     <>
       <div className="glass-panel glass-panel-hover rounded-2xl p-6 flex flex-col justify-between h-full relative overflow-hidden group">
@@ -39,27 +46,27 @@ export const DeveloperCard: React.FC<DeveloperCardProps> = ({ developer }) => {
           {/* Top section: Avatar & Name */}
           <div className="flex items-start space-x-4 mb-4">
             <img
-              src={developer.avatar}
-              alt={developer.name}
+              src={avatarUrl}
+              alt={developer.name || "Developer Avatar"}
               className="w-16 h-16 rounded-2xl object-cover border-2 border-zinc-800 shadow-md group-hover:border-brand-purple/50 transition-colors duration-200"
             />
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-bold text-white tracking-tight truncate group-hover:text-purple-300 transition-colors duration-150">
-                {developer.name}
+                {developer.name || "Anonymous Builder"}
               </h3>
-              <p className="text-xs text-purple-400 font-semibold mb-1">{developer.year}</p>
-              <p className="text-xs text-zinc-400 font-medium truncate">{developer.college}</p>
+              <p className="text-xs text-purple-400 font-semibold mb-1">{developer.year || "Student Builder"}</p>
+              <p className="text-xs text-zinc-400 font-medium truncate">{developer.college || "College / University"}</p>
             </div>
           </div>
 
           {/* Bio */}
           <p className="text-zinc-400 text-sm leading-relaxed mb-5 line-clamp-3">
-            {developer.bio}
+            {developer.bio || "No biography provided yet."}
           </p>
 
           {/* Skills */}
           <div className="flex flex-wrap gap-1.5 mb-6">
-            {developer.skills.map((skill) => (
+            {(developer.skills || []).map((skill) => (
               <SkillBadge key={skill} skill={skill} />
             ))}
           </div>
@@ -68,26 +75,30 @@ export const DeveloperCard: React.FC<DeveloperCardProps> = ({ developer }) => {
         {/* Buttons / Actions */}
         <div className="pt-4 border-t border-zinc-800/60 mt-auto">
           <div className="flex items-center justify-between mb-4">
-            {/* Social Links */}
+            {/* Social Links - Render only if URLs exist to prevent opening duplicate current page tabs */}
             <div className="flex space-x-2">
-              <a
-                href={developer.github}
-                target="_blank"
-                rel="noreferrer"
-                className="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl border border-zinc-800 transition-all duration-200 hover:-translate-y-0.5"
-                title="GitHub"
-              >
-                <FiGithub className="h-4 w-4" />
-              </a>
-              <a
-                href={developer.linkedin}
-                target="_blank"
-                rel="noreferrer"
-                className="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl border border-zinc-800 transition-all duration-200 hover:-translate-y-0.5"
-                title="LinkedIn"
-              >
-                <FiLinkedin className="h-4 w-4" />
-              </a>
+              {developer.github && (
+                <a
+                  href={developer.github}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl border border-zinc-800 transition-all duration-200 hover:-translate-y-0.5"
+                  title="GitHub"
+                >
+                  <FiGithub className="h-4 w-4" />
+                </a>
+              )}
+              {developer.linkedin && (
+                <a
+                  href={developer.linkedin}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-xl border border-zinc-800 transition-all duration-200 hover:-translate-y-0.5"
+                  title="LinkedIn"
+                >
+                  <FiLinkedin className="h-4 w-4" />
+                </a>
+              )}
             </div>
 
             {/* View Profile */}
@@ -100,8 +111,16 @@ export const DeveloperCard: React.FC<DeveloperCardProps> = ({ developer }) => {
             </button>
           </div>
 
-          {/* Invite Button */}
-          {hasBeenInvited ? (
+          {/* Invite Button - Prevent self-invitation */}
+          {currentUser?.id === developer.id ? (
+            <button
+              onClick={() => navigate('/profile')}
+              className="w-full flex items-center justify-center space-x-2 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-350 font-semibold rounded-xl text-sm hover:bg-zinc-800 hover:text-white transition-all cursor-pointer"
+            >
+              <FiUser className="h-4 w-4" />
+              <span>Manage Profile</span>
+            </button>
+          ) : hasBeenInvited ? (
             <button
               disabled
               className="w-full flex items-center justify-center space-x-2 py-2.5 bg-zinc-900 border border-zinc-800 text-purple-400 font-semibold rounded-xl text-sm opacity-80"
@@ -139,7 +158,7 @@ export const DeveloperCard: React.FC<DeveloperCardProps> = ({ developer }) => {
             </button>
 
             <h3 className="font-display text-xl font-bold text-white mb-2">
-              Invite {developer.name}
+              Invite {developer.name || "Developer"}
             </h3>
             <p className="text-xs text-zinc-500 mb-4">
               Send a personalized message inviting them to join your hackathon or project team.
@@ -167,7 +186,7 @@ export const DeveloperCard: React.FC<DeveloperCardProps> = ({ developer }) => {
                 <textarea
                   required
                   rows={4}
-                  placeholder={`Hey ${developer.name.split(' ')[0]}, I saw you are skilled in ${developer.skills.slice(0, 3).join(', ')}...`}
+                  placeholder={`Hey ${firstName}, I saw you are skilled in ${(developer.skills || []).slice(0, 3).join(', ')}...`}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-brand-purple/50 focus:border-brand-purple text-sm resize-none"

@@ -4,38 +4,44 @@ const userSchema = new mongoose.Schema(
     {
         name: {
             type: String,
-            required: true,
+            required: [true, "Name is required"],
             trim: true,
         },
 
         email: {
             type: String,
-            required: true,
+            required: [true, "Email is required"],
             unique: true,
             lowercase: true,
             trim: true,
+            validate: {
+                validator: function (v) {
+                    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+                },
+                message: (props) => `${props.value} is not a valid email address!`,
+            },
         },
 
         password: {
             type: String,
-            required: true,
+            required: [true, "Password is required"],
         },
 
         college: {
             type: String,
-            required: true,
+            required: [true, "College is required"],
+            index: true, // Indexing college for faster catalog searches/filtering
         },
 
         year: {
             type: String,
-            required: true,
+            required: [true, "Year is required"],
         },
 
-        skills: [
-            {
-                type: String,
-            },
-        ],
+        skills: {
+            type: [String],
+            default: [],
+        },
 
         bio: {
             type: String,
@@ -56,15 +62,18 @@ const userSchema = new mongoose.Schema(
             type: String,
             default: "",
         },
+
+        role: {
+            type: String,
+            enum: ["student", "admin"],
+            default: "student",
+        },
     },
     {
         timestamps: true,
     }
 );
 
-const User = mongoose.model(
-  "User",
-  userSchema
-);
+const User = mongoose.model("User", userSchema);
 
 export default User;

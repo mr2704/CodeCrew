@@ -1,6 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { loginUser, registerUser, getProfile } from '../services/authService';
+import {
+  loginUser,
+  registerUser,
+  getProfile,
+  updateUserProfile,
+} from '../services/authService';
 import type { User, TeammateRequest } from '../types';
+
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -11,11 +17,15 @@ export interface RegisterData {
   college: string;
   year: string;
   skills: string[];
+  bio?: string;
+  github?: string;
+  linkedin?: string;
 }
 
-// Shape of a raw user object returned by the backend (uses _id, not id)
+// Shape of a raw user object returned by the backend (handles both id and _id)
 interface BackendUser {
-  _id: string;
+  id?: string;
+  _id?: string;
   email: string;
   name: string;
   avatar?: string;
@@ -30,13 +40,14 @@ interface BackendUser {
 
 interface AuthContextType {
   currentUser: User | null;
+  loading: boolean;
   requests: TeammateRequest[];
   login: (email: string, password: string) => Promise<boolean>;
   register: (userData: RegisterData) => Promise<boolean>;
   logout: () => void;
   sendInvite: (developerId: string, projectName: string, message: string) => void;
   respondToInvite: (requestId: string, status: 'accepted' | 'declined') => void;
-  updateProfile: (updatedData: Partial<User>) => void;
+  updateProfile: (updatedData: Partial<User>) => Promise<boolean>;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -44,7 +55,7 @@ interface AuthContextType {
 /** Normalises a raw backend user object to the frontend User interface. */
 function normalizeUser(raw: BackendUser): User {
   return {
-    id: raw._id,
+    id: raw.id || raw._id || '',
     email: raw.email,
     name: raw.name,
     avatar: raw.avatar,
@@ -96,16 +107,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [requests, setRequests] = useState<TeammateRequest[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   // Restore session on mount
   useEffect(() => {
     const initializeAuth = async () => {
+      setLoading(true);
       const token = localStorage.getItem('codecrew_token');
 
       if (token) {
         try {
           const response = await getProfile(token);
-          setCurrentUser(normalizeUser(response.user as BackendUser));
+          if (response.success && response.user) {
+            setCurrentUser(normalizeUser(response.user as BackendUser));
+          } else {
+            localStorage.removeItem('codecrew_token');
+          }
         } catch (error) {
           console.error('Failed to restore session:', error);
           localStorage.removeItem('codecrew_token');
@@ -114,11 +131,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const savedRequests = localStorage.getItem('codecrew_requests');
       if (savedRequests) {
-        setRequests(JSON.parse(savedRequests) as TeammateRequest[]);
+        try {
+          setRequests(JSON.parse(savedRequests) as TeammateRequest[]);
+        } catch (error) {
+          console.error('Failed to parse saved requests:', error);
+          setRequests(initialMockRequests);
+          localStorage.setItem('codecrew_requests', JSON.stringify(initialMockRequests));
+        }
       } else {
         setRequests(initialMockRequests);
         localStorage.setItem('codecrew_requests', JSON.stringify(initialMockRequests));
       }
+      setLoading(false);
     };
 
     initializeAuth();
@@ -129,9 +153,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       const data = await loginUser({ email, password });
-      setCurrentUser(normalizeUser(data.user as BackendUser));
-      localStorage.setItem('codecrew_token', data.token as string);
-      return true;
+      if (data.success && data.user) {
+        setCurrentUser(normalizeUser(data.user as BackendUser));
+        localStorage.setItem('codecrew_token', data.token as string);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('Login failed:', error);
       return false;
@@ -141,12 +168,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (userData: RegisterData): Promise<boolean> => {
     try {
       const data = await registerUser(userData);
-      setCurrentUser(normalizeUser(data.user as BackendUser));
-      localStorage.setItem('codecrew_token', data.token as string);
-      return true;
+      if (data.success && data.user) {
+        setCurrentUser(normalizeUser(data.user as BackendUser));
+        localStorage.setItem('codecrew_token', data.token as string);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('Registration failed:', error);
-      return false;
+      throw error; // re-throw so Register.tsx catch block receives the original AxiosError
     }
   };
 
@@ -163,7 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       senderId: currentUser?.id ?? 'user_current',
       senderName: currentUser?.name ?? 'Anonymous User',
       senderAvatar:
-        currentUser?.avatar ??
+        currentUser?.avatar ||
         'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200&h=200',
       receiverId: developerId,
       projectName: projectName || 'General Collaboration',
@@ -187,16 +217,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ─── Profile ─────────────────────────────────────────────────────────────────
 
-  const updateProfile = (updatedData: Partial<User>): void => {
-    if (!currentUser) return;
-    setCurrentUser({ ...currentUser, ...updatedData });
+  const updateProfile = async (updatedData: Partial<User>): Promise<boolean> => {
+    if (!currentUser) return false;
+    try {
+      const token = localStorage.getItem('codecrew_token');
+      if (!token) return false;
+
+      const data = await updateUserProfile(token, {
+        name: updatedData.name,
+        college: updatedData.college,
+        year: updatedData.year,
+        bio: updatedData.bio,
+        github: updatedData.github,
+        linkedin: updatedData.linkedin,
+        skills: updatedData.skills,
+      });
+
+      if (data.success && data.user) {
+        setCurrentUser(normalizeUser(data.user as BackendUser));
+        if (data.token) {
+          localStorage.setItem('codecrew_token', data.token);
+        }
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      throw error;
+    }
   };
 
   // ─── Provider ────────────────────────────────────────────────────────────────
 
   return (
     <AuthContext.Provider
-      value={{ currentUser, requests, login, register, logout, sendInvite, respondToInvite, updateProfile }}
+      value={{ currentUser, loading, requests, login, register, logout, sendInvite, respondToInvite, updateProfile }}
     >
       {children}
     </AuthContext.Provider>

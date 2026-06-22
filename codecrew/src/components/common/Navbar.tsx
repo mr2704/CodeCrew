@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getAvatarUrl } from '../../utils/avatar';
 import { FiMenu, FiX, FiUser, FiLogOut, FiUsers, FiLayout, FiBookOpen } from 'react-icons/fi';
 
 export const Navbar: React.FC = () => {
@@ -68,7 +69,7 @@ export const Navbar: React.FC = () => {
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2 bg-zinc-900 border border-zinc-800 py-1.5 px-3 rounded-full">
                   <img
-                    src={currentUser.avatar}
+                    src={getAvatarUrl(currentUser.avatar, currentUser.name)}
                     alt={currentUser.name}
                     className="h-6 w-6 rounded-full object-cover border border-zinc-700"
                   />
@@ -138,13 +139,13 @@ export const Navbar: React.FC = () => {
                 </NavLink>
               </>
             )}
-            
+
             <div className="pt-4 pb-2 border-t border-zinc-800 mt-4">
               {currentUser ? (
                 <div className="px-4 space-y-4">
                   <div className="flex items-center space-x-3">
                     <img
-                      src={currentUser.avatar}
+                      src={getAvatarUrl(currentUser.avatar, currentUser.name)}
                       alt={currentUser.name}
                       className="h-10 w-10 rounded-full object-cover border border-zinc-700"
                     />

@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { getAllUsers } from "../../services/userService";
+import type { UserResponseData } from "../../services/userService";
 import type { Developer } from "../../types";
 
 import SearchBar from "../../components/common/SearchBar";
@@ -23,20 +24,20 @@ export const Developers: React.FC = () => {
       try {
         setIsLoading(true);
         setError(null);
-        const users = await getAllUsers();
+        const users: UserResponseData[] = await getAllUsers();
 
-        const mapped: Developer[] = users.map((user: any) => ({
-          id: user._id,
-          name: user.name ?? "",
-          college: user.college ?? "",
-          year: user.year ?? "",
+        const mapped: Developer[] = users.map((user: UserResponseData) => ({
+          id: user.id,
+          name: user.name || "",
+          college: user.college || "",
+          year: user.year || "",
           skills: Array.isArray(user.skills) ? user.skills : [],
-          bio: user.bio ?? "",
-          github: user.github ?? "",
-          linkedin: user.linkedin ?? "",
+          bio: user.bio || "",
+          github: user.github || "",
+          linkedin: user.linkedin || "",
           avatar:
             user.avatar ||
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=7c3aed&color=fff`,
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || "Developer")}&background=7c3aed&color=fff`,
         }));
 
         setDevelopers(mapped);
@@ -52,28 +53,28 @@ export const Developers: React.FC = () => {
     fetchDevelopers();
   }, []);
 
-  // Derive filter options dynamically from fetched data
+  // Derive filter options dynamically from fetched data, filtering out empty values
   const ALL_SKILLS = useMemo(
-    () => Array.from(new Set(developers.flatMap((dev) => dev.skills))).sort(),
+    () => Array.from(new Set(developers.flatMap((dev) => dev.skills).filter(Boolean))).sort(),
     [developers]
   );
 
   const ALL_COLLEGES = useMemo(
-    () => Array.from(new Set(developers.map((dev) => dev.college))).sort(),
+    () => Array.from(new Set(developers.map((dev) => dev.college).filter(Boolean))).sort(),
     [developers]
   );
 
-  const handleSkillToggle = (skill: string) => {
+  const handleSkillToggle = useCallback((skill: string) => {
     setSelectedSkills((prev) =>
       prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill]
     );
-  };
+  }, []);
 
-  const handleResetFilters = () => {
+  const handleResetFilters = useCallback(() => {
     setSearchQuery("");
     setSelectedCollege("");
     setSelectedSkills([]);
-  };
+  }, []);
 
   // Memoized filter logic
   const filteredDevelopers = useMemo(() => {
